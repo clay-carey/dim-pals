@@ -2,24 +2,19 @@
 library(shiny)
 library(dplyr)
 library(Seurat)
-library(shinyWidgets)  # For color picker input
 library(colourpicker)  # For color picker input
 library(paletteer)
+library(ggplot2)
 options(shiny.maxRequestSize = 3000*1024^2)  # Set the maximum upload size to 3gb
 
 #' @export 
-#' @description
-#' Runs the dim.pals app 
-dim.pals <- function(...) {
+dim.pals <- function(seurat_object = NULL) {
 
 # Define the UI for the Shiny app
 ui <- fluidPage(
-  titlePanel("UMAP-pal"),
+  titlePanel("Dim Pals"),
   sidebarLayout(
     sidebarPanel(
-      tags$h3("File Input"),
-      fileInput("seurat_data", "Choose .rds file with Seurat object"),
-      actionButton("plot_button", "Generate UMAP Plot"),
       tags$h3("Re-Color Individual Cluster"),
       selectInput("cluster_color", "Select Cluster for Custom Color", choices = NULL),
       colourInput("col", "Select Cluster Color", "purple"),
@@ -41,14 +36,14 @@ ui <- fluidPage(
 
 # Define the server for the Shiny app
 server <- function(input, output, session) {
-  seurat_object <- reactiveVal(NULL)
+  seurat_object <- reactiveVal(seurat_object)
   color_assignments <- reactiveVal(data.frame(Cluster = character(0), Color = character(0)))
   colors_use <- reactiveVal(c(""))
   
   
   observe({
-    if (!is.null(input$seurat_data)) {
-      seurat <- readRDS(input$seurat_data$datapath)
+    seurat <- seurat_object()
+    if (!is.null(seurat)) {
       seurat@meta.data$all_clusters <- "All_Clusters"
       seurat@meta.data <- seurat@meta.data %>% select(all_clusters, everything()) %>% arrange(seurat_clusters)
       updateSelectInput(session, "cluster_color", choices = unique(seurat$seurat_clusters))
@@ -91,7 +86,7 @@ server <- function(input, output, session) {
         unique() %>% 
         filter(.data[[grouping_column]] == group_value) %>% 
         select(seurat_clusters) 
-      color_assignments_data <-color_assignments_data %>%
+        color_assignments_data <-color_assignments_data %>%
         mutate(Color = paletteer::paletteer_d(paste0(package,"::",palette_name), 
                                               nrow(color_assignments_data), 
                                               type = "continuous")) %>% 
