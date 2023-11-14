@@ -1,10 +1,16 @@
 # Load the required libraries
 library(shiny)
+library(dplyr)
 library(Seurat)
 library(shinyWidgets)  # For color picker input
 library(colourpicker)  # For color picker input
 library(paletteer)
 options(shiny.maxRequestSize = 3000*1024^2)  # Set the maximum upload size to 3gb
+
+#' @export 
+#' @description
+#' Runs the dim.pals app 
+dim.pals <- function(...) {
 
 # Define the UI for the Shiny app
 ui <- fluidPage(
@@ -137,3 +143,4 @@ server <- function(input, output, session) {
 
 # Run the Shiny app
 shinyApp(ui, server)
+}
