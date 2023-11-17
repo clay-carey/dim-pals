@@ -25,7 +25,9 @@ ui <- fluidPage(
       selectInput("pal_package", "Select Palette Package", choices = unique(palettes_d_names$package)),
       selectInput("pal_name", "Select Palette Name", choices = unique(palettes_d_names$palette)),
       actionButton("assign_group_color_button", "Assign Group Color"),
-      actionButton("plot_button", "Generate UMAP Plot")
+      tags$h3("Refresh Plot"),
+      actionButton("plot_button", "Generate UMAP Plot"),
+      checkboxInput("show_labels", "Show Cluster Labels", value = FALSE)
     ),
     mainPanel(
       plotOutput("umap_plot"),
@@ -104,14 +106,19 @@ server <- function(input, output, session) {
     
     output$umap_plot <- renderPlot({
       if (!is.null(seurat) && nrow(color_assignments_data) > 0) {
-        cols <- rep("#000000", length(unique(seurat$seurat_clusters)))
+        cols <- c()
         for (i in 1:nrow(color_assignments_data)) {
           cluster_name <- color_assignments_data$Cluster[i]
           color <- color_assignments_data$Color[i]
           cols[cluster_name] <- color
         }
         colors_use(cols)
-        DimPlot(seurat, group.by = "seurat_clusters", cols = cols) + NoAxes() + ggtitle("") 
+        # Check if the checkbox is checked
+        if (input$show_labels) {
+          DimPlot(seurat, group.by = "seurat_clusters", cols = cols, label = TRUE, label.size = 7, label.box = TRUE) + NoAxes() + ggtitle("")
+        } else {
+          DimPlot(seurat, group.by = "seurat_clusters", cols = cols) + NoAxes() + ggtitle("")
+        }
       } else {
         DimPlot(seurat, group.by = "seurat_clusters") + NoAxes() + ggtitle("")
       }
@@ -122,7 +129,8 @@ server <- function(input, output, session) {
     })
     
     output$color_list <- renderPrint({
-      cat("palette <- ","c(", paste(shQuote(unlist(nr_cols())), collapse = ", "), ")\n")
+      cat("Copy and paste this palette for use in the seurat 'cols' argument", "\n","\n")
+      cat("palette <- ","c(", paste(shQuote(unlist(nr_cols()[order(names(nr_cols()))])), collapse = ", "), ")\n")
     })
   })
   
