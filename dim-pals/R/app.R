@@ -2,7 +2,7 @@ library(shiny)
 library(dplyr)
 library(Seurat)
 library(colourpicker)  # For color picker input
-library(paletteer)
+library(paletteer) # Package containing color palettes
 library(ggplot2)
 
 dim.pals <- function(seurat_object = NULL) {
@@ -10,8 +10,8 @@ dim.pals <- function(seurat_object = NULL) {
     titlePanel("dim-pals"),
     sidebarLayout(
       sidebarPanel(
-        selectInput("cluster_to_color","Select Cluster for Custom Color", choices = NULL),
         tags$h3("re-color individual clusters"),
+        selectInput("cluster_to_color","Select Cluster for Custom Color", choices = NULL),
         colourInput("col", "Select Cluster Color", "purple"),
         actionButton("assign_cluster_color_button", "Assign Cluster Color"),
         tags$h3("Apply Palette to Groups of Clusters"),
@@ -22,7 +22,7 @@ dim.pals <- function(seurat_object = NULL) {
         selectInput("pal_types", "Select Palette Type", choices = c("Discrete","Continuous","Dynamic")),
         selectInput("pal_package", "Select Palette Package", choices = NULL),
         selectInput("pal_name", "Select Palette Name", choices = NULL),
-        actionButton("assign_group_color_button", "Assign Group Color"),
+        actionButton("assign_group_color_button", "Assign Palette"),
         tags$h3("Refresh Plot"),
         actionButton("plot_button","Generate Plot"),
         checkboxInput("show_labels", "Show Cluster Labels", value = FALSE)
@@ -42,6 +42,7 @@ dim.pals <- function(seurat_object = NULL) {
     ##DEFINE REACTIVE VARIABLES
     seurat_object <- reactiveVal(seurat_object)
     palette <- reactiveVal(initialized_palette)
+    plotted <- reactiveVal(NULL)
     
     ##UPDATE SELECTION BOX INPUT OPTIONS
     observe({
@@ -144,7 +145,7 @@ dim.pals <- function(seurat_object = NULL) {
         }
         
         if (input$pal_types == "Continuous" && !is.null(package)) {
-          pal_vect <- paletteer::paletteer_d(pal_name, length(group_clusters))
+          pal_vect <- paletteer::paletteer_c(pal_name, length(group_clusters))
         }
         
         if (input$pal_types == "Dynamic" && !is.null(package)) {
@@ -168,8 +169,20 @@ dim.pals <- function(seurat_object = NULL) {
     }
     })
     
-    ##BUTTON : GENERATE UMAP
+    ##DEFAULT UMAP PLOT GENERATION ON APP LAUNCH
+    observe({
+      pal <- palette()
+      seurat <- seurat_object()
+      if (is.null(plotted())){
+        output$umap_plot <- renderPlot(
+        DimPlot(seurat, group.by = "seurat_clusters", cols = pal) + NoAxes() + ggtitle("")
+        )
+      }
+    })
+    
+    ##BUTTON: GENERATE UMAP
     observeEvent(input$plot_button,{
+      plotted(TRUE)
       seurat <- seurat_object()
       pal <- palette()
       output$umap_plot <- renderPlot(
@@ -178,11 +191,10 @@ dim.pals <- function(seurat_object = NULL) {
         } else {
           DimPlot(seurat, group.by = "seurat_clusters", cols = pal) + NoAxes() + ggtitle("")
         }
-    
       )
     })
     
-    ## Vector Output
+    ## VECTOR TEXT OUTPUT
     output$color_list <- renderPrint({
       cat("Copy and paste this palette for use in the seurat 'cols' argument", "\n","\n")
       cat("palette <- ","c(", paste(shQuote(unlist(palette())), collapse = ", "), ")\n")
